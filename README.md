@@ -7,4 +7,4 @@
     "email": "another-email@example.com",
     "password": "another-password"
   }
-]```
+]
