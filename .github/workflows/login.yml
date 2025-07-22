@@ -45,7 +45,7 @@ jobs:
   koyeb-login:
     runs-on: ubuntu-latest
     # 只在周日 11:00 的调度时运行
-    if: github.event.schedule == '0 11 * * 0'
+    if: github.event.schedule == '0 11 * * 0' || github.event_name == 'workflow_dispatch'
     
     steps:
       - name: 📥 Checkout repository
