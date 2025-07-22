@@ -1,40 +1,80 @@
-name: Koyeb Auto Login
+name: Combined Workflows
 
 on:
+  # 更新时间文件的触发条件
   schedule:
-    - cron: '0 11 * * 0'  # 每周日 UTC 时间 11:00 执行
-  workflow_dispatch:
+    - cron: '0 11 * * 0'    # 每周日 UTC 时间 11:00 执行
+  workflow_dispatch:         # 允许手动触发
+
 jobs:
-  login:
+  # 更新时间文件的任务
+  update-time:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: write
+    
     steps:
-    - name: 📥 Checkout repository
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+    
+      - name: Commit time.txt to repo
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          cd "${GITHUB_WORKSPACE}"
+          git pull origin main
+          
+          if [ ! -f time.txt ]; then
+            echo "首次生成时间：$(date +'%Y-%m-%d %H:%M:%S')" > time.txt
+          else
+            echo "$(date +'%Y-%m-%d %H:%M:%S')" > time.txt
+          fi
+          
+          git add time.txt
+          if git diff --cached --quiet; then
+            echo "无变化，无需提交"
+          else
+            git commit -m "⏱️ 更新时间文件: $(date +'%Y-%m-%d %H:%M:%S')"
+            git push origin HEAD:main
+          fi
 
-    - name: 🛠️ Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
+  # Koyeb 登录任务
+  koyeb-login:
+    runs-on: ubuntu-latest
+    # 只在周日 11:00 的调度时运行
+    if: github.event.schedule == '0 11 * * 0'
+    
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
 
-    - name: 📦 Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install requests
+      - name: 🛠️ Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
-    - name: 🚀 Run Koyeb login script
-      env:
-        KOYEB_ACCOUNTS: ${{ secrets.KOYEB_ACCOUNTS }}
-        TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
-        TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
-      run: python koyeb.py
-      
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: 🚀 Run Koyeb login script
+        env:
+          KOYEB_ACCOUNTS: ${{ secrets.KOYEB_ACCOUNTS }}
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+        run: python koyeb.py
+
+  # 保活工作流
   keepalive-workflow:
     name: Keepalive Workflow
     if: ${{ always() }}
     runs-on: ubuntu-latest
     permissions:
       actions: write
+    needs: [update-time, koyeb-login]
     steps:
       - uses: liskin/gh-workflow-keepalive@v1
-
