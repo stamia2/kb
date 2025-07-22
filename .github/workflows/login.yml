@@ -30,7 +30,7 @@ jobs:
           if [ ! -f time.txt ]; then
             echo "首次生成时间：$(date +'%Y-%m-%d %H:%M:%S')" > time.txt
           else
-            echo "$(date +'%Y-%m-%d %H:%M:%S')" > time.txt
+            echo "$(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M:%S')" > time.txt
           fi
           
           git add time.txt
